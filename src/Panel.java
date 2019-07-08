@@ -5,22 +5,35 @@ import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.geom.AffineTransform;
+import java.io.IOException;
 
-import javax.swing.*;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 
+import com.fazecast.jSerialComm.SerialPort;
 public class Panel extends JPanel {
+	/** The output integer to the port */
+	private Integer output;
 	public Panel(int x, int y, int w, int h) {
-		/*addComponentListener(new MouseAdapter(){
-			public void mouseReleased(MouseEvent e){
-				rx= e.getX();
-				ry= e.getY();
-				redraw();
-			}
-		});*/
+		/*setup the usb port connection*/
+		SerialPort port= SerialPort.getCommPort("COM6"); //port name varies by device and port to which you connect. it has to be changed if you use another device.
+		System.out.println(port);
+		port.setComPortParameters(9600, 8, 1, 0); // default connection settings for Arduino
+	    port.setComPortTimeouts(SerialPort.TIMEOUT_WRITE_BLOCKING, 0, 0); // block until bytes can be written
+		port.openPort();
+		if(port.isOpen())
+			System.out.println("port is open and ready to go");
+		else
+			System.out.println("something went wrong");
+		/* handles mouse events*/
 		MouseListener mouseListener = new MouseListener(){
 
 			@Override
 			public void mouseClicked(MouseEvent arg0) {
+				/* calculates the rotation associated with the mouse click in relation to  the center of  the joint
+				 * while also ensuring that the joint has limited motion*/
 				rx= (x+w+(h/2))-arg0.getX();
 				ry= y+(h/2) - arg0.getY();
 				evalTheta();
@@ -35,16 +48,20 @@ public class Panel extends JPanel {
 				evalTheta();
 				text.setText("angle: "+theta);
 				System.out.println("y: "+ry+"   x:"+rx+"    theta:"+theta+"     hype:"+Math.sqrt(ry*ry+rx*rx));
+				/*repaints the GUI with the moved joint*/
 				repaint();
-				move();
+				/*sends the over the usb port a byte value of the angle to move. 
+				 * it translates to voltage intensity in the arduino*/
+				output=(int) (theta*256/150);
+				try {
+					port.getOutputStream().write(output.byteValue());
+					port.getOutputStream().flush();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				
 			}
-
-			private void move() {
-				// TODO Auto-generated method stub
-				
-			}
-
 			@Override
 			public void mouseEntered(MouseEvent arg0) {
 				
